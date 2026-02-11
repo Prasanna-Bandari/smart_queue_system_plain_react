@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Admin Panel</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background: linear-gradient(135deg, #f0f8ff, #d0f4de);
+        display: flex;
+        justify-content: center;
+        padding-top: 50px;
+    }
+
+    .card {
+        background: #ffffffcc;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        width: 550px;
+    }
+
+    h2, h3 { text-align: center; color: #ff7f50; }
+
+    button {
+        margin: 5px;
+        padding: 10px 15px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        background-color: #007bff;
+        color: white;
+        font-weight: bold;
+        transition: background 0.3s;
+    }
+    button:hover { background-color: #0056b3; }
+
+    ul {
+        list-style: none;
+        padding-left: 0;
+        margin-top: 20px;
+    }
+
+    li {
+        margin-bottom: 10px;
+        padding: 12px;
+        border-radius: 10px;
+        background: #e0f7fa;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .priority { background: #fff3e0; }
+    .waiting-long { background: #fff0f5; }
+
+    .progress-container {
+        background: #ddd;
+        border-radius: 5px;
+        height: 12px;
+        margin-top: 5px;
+        width: 100%;
+    }
+
+    .progress-bar {
+        height: 12px;
+        border-radius: 5px;
+        background: #4caf50;
+        width: 0%;
+        transition: width 0.5s;
+    }
+
+    .token-info {
+        font-weight: bold;
+        font-size: 14px;
+    }
+</style>
+</head>
+<body>
+
+<div class="card">
+    <h2>🧑‍💼 Admin Panel</h2>
+
+    <button onclick="callNext()">Call Next</button>
+    <button onclick="callPriorityNext()">Call Priority Next</button>
+
+    <h3 id="now">No customer yet</h3>
+
+    <h4>Waiting List</h4>
+    <ul id="list"></ul>
+</div>
+
+<script>
+const API = "http://localhost:8080/api/queue";
+const avgTimePerCustomer = 5; // minutes per customer
+const maxWaitTime = 20; // minutes for "waiting too long"
+
+// Call next
+async function callNext() {
+    const res = await fetch(API + "/next", { method: 'POST' });
+    const data = await res.json();
+    if(data) {
+        document.getElementById("now").innerHTML = `Now Serving: ${data.customer.name} (Token ${data.id})`;
+        refreshList();
+    }
+}
+
+// Call priority next
+async function callPriorityNext() {
+    const res = await fetch(API + "/priority-next", { method: 'POST' });
+    const data = await res.json();
+    if(data) {
+        document.getElementById("now").innerHTML = `Now Serving: ${data.customer.name} (Token ${data.id})`;
+        refreshList();
+    }
+}
+
+// Call specific customer manually
+async function callThisNext(tokenId) {
+    const res = await fetch(API + `/call/${tokenId}`, { method: 'POST' });
+    const data = await res.json();
+    if(data) {
+        document.getElementById("now").innerHTML = `Now Serving: ${data.customer.name} (Token ${data.id})`;
+        refreshList();
+    }
+}
+
+// Refresh waiting list
+async function refreshList() {
+    const res = await fetch(API + "/waiting");
+    const list = await res.json();
+    const ul = document.getElementById("list");
+    ul.innerHTML = "";
+
+    const now = new Date().getTime();
+
+    list.forEach(item => {
+        const li = document.createElement("li");
+
+        const createdAt = new Date(item.createdAt).getTime();
+        const waited = Math.floor((now - createdAt)/60000);
+
+        if(waited >= maxWaitTime) li.classList.add('waiting-long');
+        else if(item.priority > 0) li.classList.add('priority');
+
+        li.innerHTML = `
+            <div>
+                <div class="token-info">🎫 Token: ${item.id} | ${item.customer.name} | ${item.customer.orderDetails}</div>
+                <div class="progress-container">
+                    <div class="progress-bar" style="width:${Math.min(waited/maxWaitTime*100,100)}%"></div>
+                </div>
+            </div>
+            <button onclick="callThisNext(${item.id})">Call Now</button>
+        `;
+        ul.appendChild(li);
+    });
+}
+
+// Auto-refresh every 30s
+setInterval(refreshList, 30000);
+refreshList();
+</script>
+</body>
+</html>

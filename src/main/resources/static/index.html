@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Smart Restaurant Queue</title>
+<style>
+    body {
+        font-family: 'Arial', sans-serif;
+        background: linear-gradient(135deg, #f0f8ff, #d0f4de);
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        padding-top: 50px;
+        min-height: 100vh;
+    }
+
+    .card {
+        background: #ffffffcc;
+        border-radius: 20px;
+        padding: 35px;
+        box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+        width: 500px;
+        text-align: center;
+    }
+
+    h2 {
+        color: #ff7f50;
+        margin-bottom: 25px;
+    }
+
+    input {
+        display: block;
+        width: 90%;
+        padding: 12px;
+        margin: 10px auto;
+        border-radius: 10px;
+        border: 1px solid #ffd6a5;
+        font-size: 14px;
+    }
+
+    button {
+        padding: 12px 25px;
+        margin: 10px;
+        border-radius: 10px;
+        border: none;
+        background: #ffb347;
+        color: white;
+        cursor: pointer;
+        font-size: 16px;
+        transition: background 0.3s;
+    }
+
+    button:hover {
+        background: #ff9f1a;
+    }
+
+    .status, .quote, .estimated-time {
+        margin-top: 10px;
+        font-weight: bold;
+        font-size: 16px;
+    }
+
+    .quote {
+        font-style: italic;
+        color: #555;
+    }
+
+    .menu {
+        text-align: left;
+        background: #fff3cd;
+        border-radius: 10px;
+        padding: 15px;
+        margin: 10px 0;
+        display: none;
+    }
+
+    .menu-item {
+        padding: 8px 0;
+        font-weight: 500;
+        border-bottom: 1px solid #ffe8a1;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .menu-item:hover {
+        background-color: #ffe8a1;
+    }
+
+    .progress-container {
+        background: #e0e0e0;
+        border-radius: 10px;
+        height: 20px;
+        width: 80%;
+        margin: 10px auto;
+        display: none;
+    }
+
+    .progress-bar {
+        height: 20px;
+        border-radius: 10px;
+        background: #4caf50;
+        width: 0%;
+        transition: width 0.5s;
+    }
+
+    /* Status Colors */
+    .status-waiting { color: #e74c3c; } /* Red */
+    .status-next { color: #2ecc71; }    /* Green */
+    .status-soon { color: #f1c40f; }    /* Yellow */
+</style>
+</head>
+<body>
+
+<div class="card">
+    <h2>🍽 Smart Restaurant Queue</h2>
+
+    <div id="choice">
+        <button onclick="showMenu()">I want to order</button>
+        <button onclick="showStatusForm()">I already ordered</button>
+    </div>
+
+    <!-- Menu Section -->
+    <div id="menu" class="menu">
+        <h3>Menu</h3>
+        <div class="menu-item" onclick="selectItem('Burger')">🍔 Burger - $5</div>
+        <div class="menu-item" onclick="selectItem('Pizza')">🍕 Pizza - $8</div>
+        <div class="menu-item" onclick="selectItem('Salad')">🥗 Salad - $6</div>
+        <div class="menu-item" onclick="selectItem('Coffee')">☕ Coffee - $3</div>
+        <div class="menu-item" onclick="selectItem('Sandwich')">🥪 Sandwich - $4</div>
+        <button onclick="showOrderForm()">Order Now</button>
+    </div>
+
+    <!-- Order Form -->
+    <div id="orderForm" style="display:none;">
+        <input id="name" placeholder="Name">
+        <input id="age" type="number" placeholder="Age">
+        <input id="email" placeholder="Email">
+        <input id="order" placeholder="Order Details">
+        <button onclick="addCustomer()">Get Token</button>
+        <p class="status" id="orderStatus"></p>
+        <p class="estimated-time" id="orderTime"></p>
+        <div class="progress-container" id="orderProgress">
+            <div class="progress-bar" id="orderProgressBar"></div>
+        </div>
+    </div>
+
+    <!-- Status Form -->
+    <div id="statusForm" style="display:none;">
+        <input id="token" type="number" placeholder="Enter your Token ID">
+        <button onclick="checkStatus()">Check Status</button>
+        <p class="status" id="statusResult"></p>
+        <p class="estimated-time" id="statusTime"></p>
+        <p class="quote" id="statusQuote"></p>
+        <div class="progress-container" id="statusProgress">
+            <div class="progress-bar" id="statusProgressBar"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+const API = "http://localhost:8080/api/queue";
+const quotes = [
+    "Good things take time 🍕",
+    "Almost there, your meal is on the way 🥗",
+    "Patience is delicious 😋",
+    "Your taste buds are about to celebrate 🎉",
+    "Food is love, and love is worth the wait ❤️",
+    "Hang tight! Something tasty is coming 🥪"
+];
+
+const avgTimePerCustomer = 5; // minutes per customer
+
+function showMenu() {
+    document.getElementById("choice").style.display = "none";
+    document.getElementById("menu").style.display = "block";
+}
+
+function selectItem(item) {
+    document.getElementById("order").value = item;
+}
+
+function showOrderForm() {
+    document.getElementById("menu").style.display = "none";
+    document.getElementById("orderForm").style.display = "block";
+}
+
+function showStatusForm() {
+    document.getElementById("choice").style.display = "none";
+    document.getElementById("statusForm").style.display = "block";
+}
+
+async function addCustomer() {
+    const data = {
+        name: document.getElementById("name").value,
+        age: document.getElementById("age").value,
+        email: document.getElementById("email").value,
+        orderDetails: document.getElementById("order").value
+    };
+
+    const res = await fetch(API + "/add", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+    });
+
+    if (!res.ok) {
+        alert("Error adding customer. Check backend.");
+        return;
+    }
+
+    const result = await res.json();
+    document.getElementById("orderStatus").innerHTML =
+        `✅ Thank you!<br>🎫 Your Token ID: ${result.id}<br>Status: WAITING`;
+
+    updateQueueInfo(result.id, 'order');
+}
+
+async function checkStatus() {
+    const token = document.getElementById("token").value;
+    if (!token) { alert("Please enter a valid token ID!"); return; }
+
+    const res = await fetch(API + `/status/${token}`);
+    if (!res.ok) {
+        alert("Invalid token or server error.");
+        return;
+    }
+    const statusText = await res.text();
+
+    let position = parseInt(statusText.match(/\d+/)) || 10;
+
+    // Color code based on position
+    let colorClass = 'status-waiting';
+    if (position <= 2) colorClass = 'status-next';
+    else if (position <= 5) colorClass = 'status-soon';
+
+    document.getElementById("statusResult").innerHTML = `<span class="${colorClass}">${statusText}</span>`;
+
+    const quote = quotes[Math.floor(Math.random() * quotes.length)];
+    document.getElementById("statusQuote").innerText = quote;
+
+    updateQueueInfo(token, 'status');
+}
+
+async function updateQueueInfo(tokenId, type) {
+    const res = await fetch(API + "/waiting");
+    const waiting = await res.json();
+
+    const index = waiting.findIndex(q => q.id == tokenId);
+    const total = waiting.length + 1;
+    const progressPercent = index >= 0 ? ((index + 1) / total) * 100 : 100;
+
+    const bar = type === 'order' ? document.getElementById("orderProgressBar") : document.getElementById("statusProgressBar");
+    bar.style.width = progressPercent + "%";
+    bar.parentElement.style.display = "block";
+
+    // Estimated waiting time
+    const estTime = index >= 0 ? ((index + 1) * avgTimePerCustomer) : 0;
+    const timeElem = type === 'order' ? document.getElementById("orderTime") : document.getElementById("statusTime");
+    timeElem.innerHTML = estTime > 0 ? `⏱ Estimated Waiting Time: ${estTime} min` : "";
+}
+</script>
+</body>
+</html>
