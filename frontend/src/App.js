@@ -1,14 +1,17 @@
-import React from "react";
-import Dashboard from "./components/Dashboard";
+import React, { useState } from "react";
+import Choice from "./components/Choice";
 import UserForm from "./components/UserForm";
-import StatusForm from "./components/StatusForm";
+import Dashboard from "./components/Dashboard"; // admin panel
 
 function App() {
+  const [role, setRole] = useState(""); // "" | "user" | "admin"
+
+  if (!role) return <Choice setRole={setRole} />;
+
   return (
     <div>
-      <Dashboard />      {/* Admin panel */}
-      <UserForm />       {/* Customer order */}
-      <StatusForm />     {/* Customer status */}
+      {role === "user" && <UserForm />}
+      {role === "admin" && <Dashboard />}
     </div>
   );
 }
